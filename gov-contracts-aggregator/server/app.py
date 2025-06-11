@@ -7,10 +7,6 @@ load_dotenv()
 
 app = Flask(__name__)
 
-SAM_API_KEY = os.getenv("SAM_API_KEY")
-STATE_API_URL = os.getenv("STATE_API_URL")
-STATE_API_KEY = os.getenv("STATE_API_KEY")
-
 
 @app.route("/")
 def index():
@@ -24,11 +20,12 @@ def hello():
 
 def fetch_federal_contracts(keyword=None, naics=None, start_date=None, end_date=None):
     """Fetch contracts from SAM.gov"""
-    if not SAM_API_KEY:
+    sam_api_key = os.getenv("SAM_API_KEY")
+    if not sam_api_key:
         return []
 
     url = "https://api.sam.gov/prod/opportunities/v2/search"
-    params = {"api_key": SAM_API_KEY, "limit": 20}
+    params = {"api_key": sam_api_key, "limit": 20}
 
     if keyword:
         params["q"] = keyword
@@ -51,10 +48,12 @@ def fetch_federal_contracts(keyword=None, naics=None, start_date=None, end_date=
 
 def fetch_state_contracts(keyword=None, naics=None, start_date=None, end_date=None):
     """Fetch contracts from a state API if configured"""
-    if not STATE_API_URL or not STATE_API_KEY:
+    state_api_url = os.getenv("STATE_API_URL")
+    state_api_key = os.getenv("STATE_API_KEY")
+    if not state_api_url or not state_api_key:
         return []
 
-    params = {"api_key": STATE_API_KEY}
+    params = {"api_key": state_api_key}
     if keyword:
         params["keyword"] = keyword
     if naics:
@@ -65,7 +64,7 @@ def fetch_state_contracts(keyword=None, naics=None, start_date=None, end_date=No
         params["end_date"] = end_date
 
     try:
-        resp = requests.get(STATE_API_URL, params=params, timeout=10)
+        resp = requests.get(state_api_url, params=params, timeout=10)
         resp.raise_for_status()
         data = resp.json()
         if isinstance(data, dict):
@@ -88,6 +87,19 @@ def contracts():
     state = fetch_state_contracts(keyword, naics, start_date, end_date)
 
     return jsonify({"federal": federal, "state": state})
+
+
+@app.route("/api/update_key", methods=["POST"])
+def update_key():
+    """Update API keys without restarting the server."""
+    data = request.get_json(force=True)
+    sam_key = data.get("sam_api_key")
+    state_key = data.get("state_api_key")
+    if sam_key:
+        os.environ["SAM_API_KEY"] = sam_key
+    if state_key:
+        os.environ["STATE_API_KEY"] = state_key
+    return jsonify({"message": "API keys updated"})
 
 
 if __name__ == "__main__":
