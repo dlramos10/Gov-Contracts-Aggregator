@@ -1,1 +1,4 @@
-Flask   # Or paste the full list above
+Flask
+requests
+gunicorn
+python-dotenv
